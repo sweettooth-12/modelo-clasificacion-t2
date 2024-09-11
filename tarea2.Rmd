@@ -1,0 +1,326 @@
+---
+title: "Tarea 2. Módulo III. Ciencia de Datos."
+author: "Radha"
+date: "2024-09-09"
+output: html_document
+---
+
+# Tarea 2: Modelos de Clasificación
+
+### Objetivo:
+
+Realizar un análisis de clasificación utilizando el conjunto de datos que se provee en la siguiente tabla, seguido de la estimación del modelo, cálculo de probabilidades, evaluación de métricas clave como precisión, recall, F1-score y análisis del impacto del umbral de clasifiación en el desempeño del modelo.
+Para este ejercicio, la variable "Clase" (Y) es la variable dependiente que representa la categpría o clase a al que prtenece cada observación. Como cualquier modelo de clasificación binaria, esta variable puede tomar dos valores:
+
+- 0: Representa una clase o categoría específica (por ejemplo, "no").
+- 1: Representa la otra clase o categoría (por ejemplo, "sí").
+
+El valor de "Clase" indica si una observación pertenece a una categoría o a la otra con una base en las variables dependientes "Edad" (X1) e "Ingreso Anual" (X"). Para este modelo, se busca predecir si un individuo realiza una compra (Clase=1) o no (Clase=0), en función de su edad e ingreso anual.
+
+En R:
+
+```{r}
+# Importo las librerías necesarias
+library(dplyr)
+library(ggplot2)
+
+# Creo las variables
+clase <- c(0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1)
+
+ingreso_anual <- c(35000, 65000, 50000, 80000, 40000, 70000, 45000, 55000, 38000, 75000, 52000, 68000, 36000, 66000, 39000, 72000, 49000, 67000, 41000, 74000, 48000, 60000, 37000, 73000, 51000, 69000, 34000, 53000, 42000, 76000)
+
+edad <- c(23, 45, 36, 50, 29, 40, 31, 38, 27, 42, 34, 48, 25, 46, 28, 41, 33, 44, 30, 47, 32, 39, 26, 43, 35, 49, 24, 37, 29, 51)
+
+# Creo el dataframe a partir de las variables
+tabla <- data.frame(edad, ingreso_anual, clase)
+```
+
+### Paso 1: Análisis Descriptivo de las Variables
+
+### Instrucciones:
+
+- Realiza un análisis descriptivo de las variables independientes y de la variable dependiente (clase), y de cómo se relacionan entre sí.
+- Criterio: Incluye medidas de tendencia central (media, mediana) y dispersión (desviación estándar, rango) para las variables independientes. Para la variable clase, proporciona la frecuencia de cada clase, Incluye gráficos como histogramas y matrices de correlación. Comenta sobre la distribución de cada variable y cualquier observación relevante.
+
+```{r}
+# Medidas de tendencia central de edad
+summary(edad)
+```
+
+```{r}
+# Varianza de edad
+var_edad <- var(edad)
+var_edad
+```
+
+```{r}
+# Desviación estándar de edad
+des_edad <- sd(edad)
+des_edad
+```
+
+
+```{r}
+# Medidas de tendencia central de ingreso_anual
+summary(ingreso_anual)
+```
+
+```{r}
+# Varianza de ingreso_anual
+var_ingreso <- var(ingreso_anual)
+var_ingreso
+```
+
+```{r}
+# Desviación estándar de edad
+des_ingreso <- sd(ingreso_anual)
+des_ingreso
+```
+
+```{r}
+# Analizo la correalación entre las tres variables
+print(paste('Correlacion Pearson: ', cor(tabla['clase'], tabla['edad']),
+            'Correlacion Pearson: ', cor(tabla['clase'], tabla['ingreso_anual']),
+            'Correlacion Pearson: ', cor(tabla['edad'], tabla['ingreso_anual'])))
+```
+
+```{r}
+# Genero un histograma de la variable dependiente clase para ver su frecuencia.
+hist(x=clase, main="Histograma de la variable Clase (0,1)",
+     xlab="Clase",
+     ylab="Frecuencia",
+     col="purple")
+```
+
+### Paso 2: Construcción del Modelo de Clasificación
+
+### Instrucciones:
+
+- Genera un modelo de clasificación (logit) para realizar la estimación del modelo.
+- Ajusta el modelo utilizando un software estadístico de tu preferencia (R, Python, o ambos).
+- Criterio: Reporta los coeficientes estimados (si aplica), la Pseauto R-Ajustada, y las pruebas de significacia estadística de las estimaciones del modelo.
+
+```{r}
+# Agrupo por clase y cuento cuántos casos caen en 0 y cuántos en 1.
+tabla %>%
+  group_by(clase) %>%
+  summarise(Numero=n())
+# Son exactamente la mitad 
+```
+
+```{r}
+# Creo un gráfico de violín a partir de la clase con la variable edad
+tabla %>% # aes= aesthethic
+  ggplot(aes(x=as.character(clase), y=edad, fill=as.character(clase)))+
+  geom_violin()+
+  geom_boxplot()
+```
+
+```{r}
+# Creo un gráfico de violín a partir de la clase con la variable ingreso_anual
+tabla %>% # aes= aesthethic
+  ggplot(aes(x=as.character(clase), y=ingreso_anual, fill=as.character(clase)))+
+  geom_violin()+
+  geom_boxplot()
+```
+
+### Paso 3: Cálculo de Probabilidades:
+
+### Instrucciones:
+
+- Utiliza el modelo estimado para calcular las probabilidades predichas para cada observación de la base de entrenamiento.
+- Criterio: Realiza comentadios sobre éstas probabilidades estimadas, qué significan y cómo se relacionan con la clasificación binaria de tu modelo.
+
+```{r}
+# Creo un modelo en el que la variable clase dependa de las variables edad e ingreso_anual
+model <- glm(clase ~ edad + ingreso_anual, family ="binomial")
+
+# Creo un objeto para guardar las predicciones a partir de mi modelo
+y_prob <- predict(model, tabla, type='response')
+y_prob
+```
+
+### Paso 4: Evaluación de la Matriz de Confusión y Métricas de Desempeño
+
+### Instrucciones:
+
+- Construye la matriz de confusión del modelo utilizando un umbral de clasificación predeterminado (ej. 0.5), e interpreta los resultados con las métricas de evaluación.
+- Criterio: Calcula las siguientes métricas:
+--> Precisión (accuracy)
+--> Precisión (Precision)
+--> Recall (sensibilidad)
+--> F1-Score
+
+```{r}
+# Calculo la predicción con un umbral de 0.5 y convierto las predicciones en binario
+y_pred <- ifelse(y_prob >= 0.5,1,0)
+y_pred
+```
+
+```{r}
+# Calculo la precisión y me da 1
+precision <- sum(y_pred[clase==1]==1)/sum(y_pred==1)
+precision
+```
+
+```{r}
+# Calculo el recall y me da 1
+recall <- sum(y_pred[clase==1]==1)/sum(clase==1)
+recall
+```
+```{r}
+# Calculo el f1-score y me da 1
+f1 <- 2*((precision*recall)/(precision+recall))
+f1
+```
+
+```{r}
+# Creo vectores para apilar los datos
+precisions <- vector()
+recalls <- vector()
+f1_scores <- vector()
+```
+
+
+```{r}
+#Apilo los datos
+precisions <- c(precisions, precision)
+precisions
+```
+
+```{r}
+#Apilo los datos
+recalls <- c(recalls, recall)
+recalls
+```
+
+```{r}
+#Apilo los datos
+f1_scores <- c(f1_scores, f1)
+f1_scores
+```
+
+### Paso 5: Impacto del Umbral de Clasificación
+
+### Instrucciones:
+
+- Experimenta cambiando el umbral de clasificación y analiza cómo afectan éstos cambios a la matriz de confusión y las métricas calculadas. Puedes apoyarte de un código para generar diferentes thresholds para evaluar el cambio en las métricas de evaluación del modelo de clasificación.
+- Criterio: Comenta sobre la importancia de seleccionar un umbral adecuado y cómo éste puede influir en el éxito del modelo.
+
+```{r}
+# Creo otro objeto para evaluar una secuencia de 100 valores distintos de threshold del 0 al 1
+thresholds <- seq(0,1,length.out=100)
+thresholds
+```
+
+```{r}
+# Genero vectores para guardar los resultados de las pruebas de precisión, racall y f1-score
+precisions2 <- vector()
+recalls2 <- vector() 
+f1_scores2 <- vector() 
+
+# Genero un bucle for para evaluar los threshold generados
+for (threshold in thresholds){
+  y_pred2 <- ifelse(y_prob >= threshold,1,0) # Si y_prob es >= al theshold, le pongo la categoria 1, al resto, 0
+  
+  # Hago lo mismo para precisión, recall y f1-score
+  precision2 <- sum(y_pred2[clase==1]==1)/sum(y_pred2==1)
+  recall2 <- sum(y_pred2[clase==1]==1)/sum(clase==1)
+  f1_2 <- 2*((precision2*recall2)/(precision2+recall2))
+  #Apilo los datos
+  precisions2 <- c(precisions2, precision2)
+  recalls2 <- c(recalls2, recall2)
+  f1_scores2 <- c(f1_scores2, f1_2)
+}
+```
+
+```{r}
+# Busco el f1-score mayor obtenido
+max_f1_index <- which.max(f1_scores2)
+max_f1_index
+```
+
+```{r}
+# Busco el threshold óptimo de acuerdo al mayor f1
+optimal_threshold <- thresholds[max_f1_index]
+optimal_threshold
+```
+
+```{r}
+# Busco la precisión óptima de acuerdo al mayor f1
+optimal_precision <- precisions2[max_f1_index]
+optimal_precision
+```
+
+```{r}
+# Busco el recall óptimo de acuerdo al mayor f1
+optimal_recall <- recalls2[max_f1_index]
+optimal_recall
+```
+
+```{r}
+# Busco el f-1 score óptimo
+optimal_f1_scores <- f1_scores2[max_f1_index]
+optimal_f1_scores
+```
+
+El threshold óptimo es el que se encuentra en la segunda posición [1] (0.01010101) porque con él, obtengo un f1-score de 1.
+
+Ahora, creo un modelo de clasificación:
+
+```{r}
+# A partir de los datos reales que tengo, creo una copia del dataframe y renombro las columnas para identificar fácilmente las variables.
+base_entrenamiento <- tabla %>%
+  mutate(X1 = edad,
+         X2 = ingreso_anual,
+         Y = clase) %>%
+  select(X1, X2, Y) # Sólo estaré trabajando con las columnas X1, X2 y Y.
+base_entrenamiento
+```
+
+```{r}
+# Creo un dataframe para prueba con 50 datos aleatorios pero establezco que la edad mínima sea de 18 años y la máxima de 100, así como un ingreso anual mínimo de 0 y máximo de 100,000 USD.
+base_prueba <- data.frame(X1 = runif(50, min=18, max=100),
+                            X2 = runif(50, min=0, max=100000)) %>%
+  mutate(Y = as.factor(sample(0:1, 50, replace=TRUE)))
+base_prueba
+```
+
+```{r}
+# Creo un modelo en el que Y esté en función de X1 y X2 de la base de datos de entrenamiento
+modelo= glm(Y ~ X1 + X2, data=base_entrenamiento, family="binomial")
+# Usando el modelo, guardo las predicciones de la base de datos de prueba
+predicciones = predict(modelo, base_prueba, type='response')
+# Creo otro objeto para las predicciones de Y de acuerdo a los resultados y establezco el theshold óptimo, según mis cálculos anteriores
+predicciones_Y = ifelse(predicciones >= 0.01010101, 1,0)
+predicciones_Y
+```
+
+```{r}
+# Creo una matriz de confusión de acuerdo a las predicciones de Y y de de Y en la base de prueba
+confusion = table(predicciones_Y, base_prueba$Y)
+confusion
+
+# De acuerdo a los resultados, hay:
+# 8 verdaderos positivos
+# 12 verdaderos negativos
+# 5 falsos positivos
+# 25 falsos negativos
+```
+
+```{r}
+# Analizo la precisión a partir de mi matriz de confusión
+precision = sum(diag(confusion))/(sum(confusion))
+precision
+# La precisión es del 40%.
+```
+
+### Paso 6: Conclusiones
+
+### Instrucciones:
+
+- Resume los hallazgos clave del análisis, incluyendo la significancia del modelo, la calidad de las probabilidades predichas y el impacto del umbral en las métricas de desempeño.
+- Criterio: Justifica todas las decisiones y conclusiones con base en los resultados obtenidos.
+
+La predicción del 40% es bastante mala, pero desde el inicio, la cantidad de datos era poca y tenían una distribución categórica del 50%, lo cual, por lo que tampoco tenía variedad y es difícil calcular correctamente las probabilidades.
+Calculando el threshold óptimo empeoró el modelo porque estaba sobreajustado y muy alejado de la realidad. Aunque la predicción de las probabilidades haya disminuido drásticamente, es mejor ver que el modelo en realidad no funciona y poder ajustarlo.
